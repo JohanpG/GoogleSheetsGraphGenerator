@@ -1,0 +1,75 @@
+function GenerateData() 
+{
+  //Get Sheet
+  var ss = SpreadsheetApp.openById("1QAvNQRO_SLWZ-ypOnw-6O4J98S2Jz88g7f5A_4pFx_E");
+  var sheet = ss.getSheetByName("Sheet2");
+  //Clear Old Data
+  sheet.getRange('F2:H1440').clearContent();
+  //Get Range
+  var Fullrange = sheet.getRange("A1:J1500");
+  var values = Fullrange.getValues();
+  //Get Range Dates
+  var IntialDate = sheet.getRange("J4").getValue(); 
+  var CurrentDate = IntialDate;  
+  var FinishDate = sheet.getRange("J3").getValue(); 
+  
+  //var temp1 = new Date(FinishDate);
+  //FinishDate  = Utilities.formatDate(temp1,'GMT-5','dd/MM/yyyy HH:mm:ss');
+  // var temp2 = new Date((CurrentDate + 1));
+  //  CurrentDate  = Utilities.formatDate(temp2,'GMT-5','dd/MM/yyyy HH:mm:ss');
+  
+  
+  
+  //Initialize variables
+  var LastState =0; //Default Sate
+  var PowerRate = sheet.getRange("J1").getValue(); 
+  var StartFilter = sheet.getRange("J2").getValue();
+  var PowerConsumed =0; //Default Sate
+  var StepFactor = sheet.getRange("J6").getValue(); 
+  //Iterate to create last 24 hours of existing data
+  for (var i = 2; i <= 1441; i++) 
+  {
+    //Only set the existing data
+    if(CurrentDate <= FinishDate && CurrentDate>= StartFilter)
+    {
+      var temp = new Date(CurrentDate.getTime()+(1/1440)*3600000*24);// Time on js are represented on miliseconds 
+      CurrentDate = temp;
+      Fullrange.getCell(i,6).setValue(temp);
+      
+      for (var j = 2; j <= 115; j++) 
+      {
+        var ExistingDate =values[j][2]; //Third Column
+        if(ExistingDate!="")
+        {
+          var Diference =(Math.abs(CurrentDate - ExistingDate)/60000);
+          if((Diference<=1) )
+          {
+            var ExistingState =values[j][3]; //fourth Column
+            LastState = ExistingState * StepFactor;
+            Fullrange.getCell(i,7).setValue(LastState);
+           // break;
+            
+          }
+          else {Fullrange.getCell(i,7).setValue(LastState);}
+          
+         }
+        
+      }
+      //Summ the power consumption for the new minute
+      if(LastState == 1*StepFactor)
+      {
+        PowerConsumed += PowerRate/60;
+        
+      }
+      //Write power consumed
+       Fullrange.getCell(i,8).setValue(PowerConsumed);
+ 
+    }
+    else {break;}
+    
+  }
+ 
+}
+
+
+
