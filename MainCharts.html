@@ -1,0 +1,188 @@
+﻿﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <!--Table and divs that hold the charts-->
+    <table class="columns">
+        <tr>
+            <!--Div that will hold the dashboard-->
+            <td>
+                <div id="dashboard_div" style="border:1px solid black; width: 915px; height: 700px; margin:0 auto;">
+                    <!--Divs that will hold each control and chart-->
+                    <div id="chart_div" align="center" style="margin:0 auto; padding: 0"></div>
+                    <div id="filter_div" align="center" style="width: 700px; height: 50px; margin:0 auto;"></div>
+                    <p><span id='dbgchart'></span></p>
+                </div>
+            </td>
+        </tr>
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+        <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.js"></script>
+        <script>
+            // load the visualization library from Google and set a listener
+            google.load("visualization", "1", { packages: ["corechart", "controls"] });
+            google.setOnLoadCallback(drawChart);
+
+            // this has to be a global function
+            function drawChart() {
+
+                var data = new google.visualization.DataTable();
+                data.addColumn('datetime', 'Date');
+                data.addColumn('number', 'Humidity %');
+                data.addColumn('number', 'Temperature °C');
+
+                getData(function (csvData) {
+                    data.addRows(csvData);
+
+
+
+                    // grab the CSV
+                    // jQuery.get("https://docs.google.com/spreadsheets/d/e/2PACX-1vS2xHZj8r7oe8uCTKdj9maqAoViCLebpRUXdSNwMNnyId3G5OEic6wZBvhn5et_Wf9rCUqmk1JEx78h/pub?gid=0&single=true&output=csv", function (csvString) {
+                    // transform the CSV string into a 2-dimensional array
+                    //var arrayData = jQuery.csv.toArrays(csvString, { onParseValue: jQuery.csv.hooks.castToScalar });
+
+                    // this new DataTable object holds all the data
+                    // var data = new google.visualization.arrayToDataTable(arrayData);
+
+                    // this view can select a subset of the data at a time
+                    //var view = new google.visualization.DataView(data);
+                    //view.setColumns([0,1]);
+
+                    // Create a dashboard.
+                    var dashboard = new google.visualization.Dashboard(
+                        document.getElementById('dashboard_div'));
+
+                    //Caculate RANGE WINDOW FOR CONTROL WRAPPER
+                    //Sum substarc date
+                    var add_sub_minutes = function (dt, minutes) { return new Date(dt.getTime() - minutes * 60000); }
+
+                    var lastRow = data.getNumberOfRows() - 1;
+                    var lastDate = new Date(data.getFormattedValue(lastRow, 0));
+                    var minDate = add_sub_minutes(lastDate, 120);
+
+                    //new Date(moment('5/9/2017 23:25:30').format('DD-MM-YYYY HH:mm'))
+
+                    // Create a range slider, passing some options
+                    var lineRangeSlider = new google.visualization.ControlWrapper({
+                        controlType: 'ChartRangeFilter',
+                        containerId: 'filter_div',
+                        options: {
+                            filterColumnLabel: 'Date',
+                            ui: {
+                                chartType: 'LineChart',
+                                chartOptions: {
+                                    pointSize: 1,
+                                    interpolateNulls: true,
+                                    enableInteractivity: false,
+                                    chartArea: { 'height': '100%' },
+                                    legend: { 'position': 'none' },
+                                    hAxis: { 'textPosition': 'in' },
+                                    vAxis: {
+                                        textPosition: 'none',
+                                        gridlines: { 'color': 'none' }
+                                    }
+                                }
+                            }
+                        },
+                        // Initial range: 2012-02-09 to 2012-03-20.
+                        'state': {
+                            'range': { 'start': minDate, 'end': lastDate }
+
+                        }
+
+                    });
+
+                    // set chart options
+                    var options = {
+                        title: "Temperature, Humidity vs Time",
+                        hAxis: { title: data.getColumnLabel(0), minValue: data.getColumnRange(0).min, maxValue: data.getColumnRange(0).max },
+                        vAxis: { title: data.getColumnLabel(1), minValue: data.getColumnRange(1).min, maxValue: data.getColumnRange(1).max },
+                        curveType: 'function',
+                        interpolateNulls: true,
+                        legend: { position: 'bottom' }
+                    };
+
+                    // create the chart object and draw it
+                    var chart = new google.visualization.ChartWrapper({
+                        'chartType': 'LineChart',
+                        'containerId': 'chart_div',
+                        'options': {
+                            'title': 'Temperature, Humidity vs Time',
+                            'width': 900,
+                            'height': 500,
+                            'interpolateNulls': true,
+                            'legend': 'right',
+                            'curveType': 'function'
+                        }
+                    });
+                    function setOptions() {
+                        var firstDate;
+                        var lastDate;
+                        var v = lineRangeSlider.getState();
+
+                        if (v.range) {
+                            document.getElementById('dbgchart').innerHTML = v.range.start + ' to ' + v.range.end;
+                            firstDate = new Date((moment(v.range.start).format('DD-MM-YYYY HH:mm') + 1));
+                            lastDate = new Date((moment(v.range.end).format('DD-MM-YYYY HH:mm') - 1));
+                            data.setValue(v.range.start.getMonth(), 0, firstDate);
+                            data.setValue(v.range.end.getMonth(), 0, lastDate);
+                        } else {
+                            firstDate = data.getValue(0, 0);
+                            lastDate = data.getValue(data.getNumberOfRows() - 1, 0);
+                        }
+
+                        var ticks = [];
+                        for (var i = firstDate.getMonth(); i <= lastDate.getMonth(); i++) {
+                            ticks.push(data.getValue(i, 0));
+                        }
+
+                        chart.setOption('hAxis.ticks', ticks);
+                        chart.setOption('hAxis.viewWindow.min', firstDate);
+                        chart.setOption('hAxis.viewWindow.max', lastDate);
+                        if (dashboard) {
+                            chart.draw();
+                        }
+                    }
+
+                    //setOptions();
+                    //google.visualization.events.addListener(lineRangeSlider , 'statechange', setOptions);
+
+                    dashboard.bind(lineRangeSlider, chart)
+                    // Draw the dashboard.
+                    dashboard.draw(data)
+
+                    // chart.draw(data , options);
+                    //});
+                });
+            }
+
+
+            function getData(callback) {
+                jQuery.get('https://docs.google.com/spreadsheets/d/e/2PACX-1vS2xHZj8r7oe8uCTKdj9maqAoViCLebpRUXdSNwMNnyId3G5OEic6wZBvhn5et_Wf9rCUqmk1JEx78h/pub?gid=0&single=true&output=csv', function (csv) {
+                    var output = [];
+
+
+                    csv.split(/\n/).forEach(function (row) {
+
+                        var cells = row.split(','),
+                            date = new Date(moment(cells[0]).format('DD-MM-YYYY HH:mm')),
+                            value1 = parseFloat(cells[1]),
+                            value2 = parseFloat(cells[2]);
+
+                        output.push([date, value1, value2]);
+                    });
+                    //setTimeout('alert("first function finished");', 300);
+
+                    callback(output);
+                });
+            }
+        </script>
+
+</body>
+</html>
